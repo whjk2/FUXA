@@ -1,0 +1,104 @@
+@startuml FUXA REST API Endpoints
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+
+title FUXA - REST API 엔드포인트 구조
+
+skinparam package {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+}
+
+skinparam usecase {
+  BackgroundColor #BBDEFB
+  BorderColor #1565C0
+}
+
+package "인증 (Authentication)" {
+  usecase "POST /api/signin\n로그인, JWT 발급" as AUTH_LOGIN
+  usecase "POST /api/signout\n로그아웃" as AUTH_OUT
+  usecase "GET /api/refreshtoken\n토큰 갱신" as AUTH_REFRESH
+}
+
+package "프로젝트 관리 (/api/project)" {
+  usecase "GET /api/project\n프로젝트 전체 조회" as PRJ_GET
+  usecase "GET /api/projectget\n섹션별 조회" as PRJ_GETSEC
+  usecase "POST /api/projectset\n섹션 저장" as PRJ_SET
+  usecase "DELETE /api/projectdel\n섹션 삭제" as PRJ_DEL
+  usecase "GET /api/projectdata\n프로젝트 내보내기 (ZIP)" as PRJ_DATA
+  usecase "POST /api/projectimport\n프로젝트 가져오기" as PRJ_IMP
+}
+
+package "사용자 관리 (/api/users)" {
+  usecase "GET /api/users\n사용자 목록" as USR_LIST
+  usecase "POST /api/users\n사용자 추가" as USR_ADD
+  usecase "PUT /api/users\n사용자 수정" as USR_UPD
+  usecase "DELETE /api/users\n사용자 삭제" as USR_DEL
+  usecase "GET /api/usergroups\n사용자 그룹" as USR_GRP
+}
+
+package "알람 (/api/alarms)" {
+  usecase "GET /api/alarms\n알람 이력 조회" as ALM_GET
+  usecase "DELETE /api/alarms\n알람 이력 삭제" as ALM_DEL
+  usecase "GET /api/alarmsack\n미확인 알람" as ALM_ACK
+  usecase "POST /api/alarmsack\n알람 확인(Acknowledge)" as ALM_ACK_POST
+}
+
+package "DAQ 데이터 (/api/daq)" {
+  usecase "GET /api/daq\n이력 태그 값 조회" as DAQ_GET
+  usecase "GET /api/daqquery\n집계 쿼리" as DAQ_QRY
+  usecase "DELETE /api/daq\n이력 데이터 삭제" as DAQ_DEL
+}
+
+package "스케줄러 (/api/scheduler)" {
+  usecase "GET /api/scheduler\n스케줄러 목록" as SCHED_LIST
+  usecase "POST /api/scheduler\n스케줄러 추가/수정" as SCHED_SET
+  usecase "DELETE /api/scheduler\n스케줄러 삭제" as SCHED_DEL
+}
+
+package "스크립트 (/api/scripts)" {
+  usecase "GET /api/scripts\n스크립트 목록" as SCR_LIST
+  usecase "POST /api/scripts\n스크립트 실행/저장" as SCR_RUN
+  usecase "DELETE /api/scripts\n스크립트 삭제" as SCR_DEL
+}
+
+package "리포트 (/api/reports)" {
+  usecase "GET /api/reports\n리포트 목록/생성" as REP_GET
+  usecase "POST /api/reports\n리포트 저장" as REP_SET
+  usecase "DELETE /api/reports\n리포트 삭제" as REP_DEL
+}
+
+package "명령 (/api/command)" {
+  usecase "POST /api/command\n태그 값 쓰기" as CMD_WRITE
+}
+
+package "플러그인 (/api/plugins)" {
+  usecase "GET /api/plugins\n플러그인 목록" as PLG_LIST
+  usecase "POST /api/plugins\n플러그인 설치" as PLG_INST
+  usecase "DELETE /api/plugins\n플러그인 제거" as PLG_DEL
+}
+
+package "리소스 (/api/resources)" {
+  usecase "GET /api/resources\n파일(이미지) 목록" as RES_LIST
+  usecase "POST /api/resources\n파일 업로드" as RES_UP
+  usecase "DELETE /api/resources\n파일 삭제" as RES_DEL
+}
+
+package "API 키 (/api/apikeys)" {
+  usecase "GET /api/apikeys\nAPI 키 목록" as KEY_LIST
+  usecase "POST /api/apikeys\nAPI 키 생성" as KEY_ADD
+  usecase "DELETE /api/apikeys\nAPI 키 삭제" as KEY_DEL
+}
+
+package "진단 (/api/diagnose)" {
+  usecase "GET /api/diagnose\n시스템 진단 정보" as DIAG
+}
+
+note top of "인증 (Authentication)"
+  JWT Bearer 토큰 또는
+  X-API-Key 헤더로 인증
+  Rate Limiting 적용
+end note
+
+@enduml

@@ -1,0 +1,84 @@
+@startuml FUXA Data Flow Diagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title FUXA - 실시간 데이터 흐름 (Sequence Diagram)
+
+actor "운영자\n(Browser)" as OP
+participant "Angular\nHmiService" as CLI
+participant "Socket.IO\nServer" as SOCK
+participant "Runtime\n(index.js)" as RT
+participant "DevicesManager" as DM
+participant "Device Driver\n(e.g. OPC-UA)" as DRV
+participant "AlarmsManager" as AM
+participant "DAQStorage" as DAQ
+database "SQLite /\nInfluxDB" as DB
+
+== 초기 연결 및 프로젝트 로드 ==
+
+OP -> CLI : 브라우저 접속
+CLI -> SOCK : socket.connect()
+SOCK -> RT : 'connection' 이벤트
+RT -> CLI : 'app-id' 전송
+
+CLI -> SOCK : REST GET /api/project
+SOCK -> RT : ProjectManager.getProject()
+RT --> CLI : 프로젝트 데이터 (views, devices, tags)
+
+CLI -> SOCK : 'subscribe-devices' (태그 목록 전송)
+SOCK -> RT : tagsSubscription 등록
+
+== 실시간 태그 폴링 루프 ==
+
+loop 폴링 주기 (디바이스별 설정)
+  DM -> DRV : readTag(tagId)
+  DRV --> DM : 태그 값 반환
+  DM -> RT : 'tag-value:changed' 이벤트 emit
+  RT -> DAQ : setValue(tagId, value, timestamp)
+  DAQ -> DB : INSERT 또는 upsert
+  RT -> SOCK : io.emit('device-values', { id, value })
+  SOCK -> CLI : 'device-values' 수신
+  CLI -> OP : UI 업데이트 (게이지/차트 갱신)
+end
+
+== 알람 체크 루프 ==
+
+loop 1초 간격
+  AM -> DM : getTagValue(tagId)
+  DM --> AM : 현재 태그 값
+  AM -> AM : 임계값 비교
+  alt 알람 조건 충족
+    AM -> DB : 알람 INSERT
+    AM -> RT : 'alarms-status' 이벤트
+    RT -> SOCK : io.emit('alarms-status', alarmData)
+    SOCK -> CLI : 알람 알림 수신
+    CLI -> OP : 알람 배지 / 팝업 표시
+  end
+end
+
+== 운영자가 태그 값 쓰기 ==
+
+OP -> CLI : 버튼 클릭 (값 write)
+CLI -> SOCK : REST POST /api/command
+SOCK -> RT : CommandAPI → DevicesManager.setValue()
+RT -> DM : setValue(tagId, value)
+DM -> DRV : writeTag(tagId, value)
+DRV --> DM : 성공
+DM --> RT : OK
+RT --> CLI : HTTP 200 응답
+
+== DAQ 이력 데이터 조회 ==
+
+OP -> CLI : 차트에서 기간 조회 요청
+CLI -> SOCK : REST GET /api/daq?from=...&to=...
+SOCK -> RT : DAQStorage.getValues()
+DAQ -> DB : SELECT WHERE timestamp BETWEEN ...
+DB --> DAQ : 이력 데이터
+DAQ --> RT : DaqResult
+RT --> CLI : HTTP 200 + DaqResult JSON
+CLI -> OP : 차트 렌더링
+
+@enduml

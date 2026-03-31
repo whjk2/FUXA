@@ -1,0 +1,125 @@
+@startuml FUXA System Overview
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam defaultFontName "Noto Sans"
+
+title FUXA - 전체 시스템 아키텍처 개요
+
+skinparam node {
+  BackgroundColor #E8F4FD
+  BorderColor #2196F3
+}
+
+skinparam package {
+  BackgroundColor #FFF9E6
+  BorderColor #FFC107
+}
+
+skinparam database {
+  BackgroundColor #E8F5E9
+  BorderColor #4CAF50
+}
+
+skinparam cloud {
+  BackgroundColor #F3E5F5
+  BorderColor #9C27B0
+}
+
+node "클라이언트 (Browser / Electron App)" as CLIENT {
+  package "Angular SPA" {
+    [HMI 뷰어 (home/view)] as HMIV
+    [프로젝트 에디터 (editor)] as EDITOR
+    [디바이스 관리 (device)] as DEV_UI
+    [알람 / 로그 뷰 (alarms/logs)] as ALARM_UI
+    [스크립트 / 리포트 (scripts/reports)] as SCRIPT_UI
+    [사용자 관리 (users)] as USER_UI
+    [스케줄러 (scheduler)] as SCHED_UI
+    [Node-RED 통합 (flows)] as NODERED_UI
+  }
+}
+
+node "Server (Node.js)" as SERVER {
+  package "Express REST API" as API_PKG {
+    [/api/project] as API_PRJ
+    [/api/auth] as API_AUTH
+    [/api/users] as API_USR
+    [/api/alarms] as API_ALM
+    [/api/daq] as API_DAQ
+    [/api/scheduler] as API_SCHED
+    [/api/scripts] as API_SCR
+    [/api/reports] as API_REP
+    [/api/plugins] as API_PLG
+    [/api/command] as API_CMD
+    [/api/apikeys] as API_KEY
+  }
+
+  package "Runtime Engine" as RT {
+    [DevicesManager] as DEVMGR
+    [ProjectManager] as PRJMGR
+    [AlarmsManager] as ALMMGR
+    [NotificatorManager] as NOTIF
+    [ScriptsManager] as SCRMGR
+    [SchedulerService] as SCHEDSVC
+    [JobsManager] as JOBMGR
+    [PluginsManager] as PLGMGR
+    [UsersManager] as USRMGR
+    [ApiKeysManager] as APIKEYSMGR
+    [DAQStorage] as DAQSTG
+  }
+}
+
+package "디바이스 프로토콜 (Plugins)" as PROTOCOLS {
+  [OPC-UA] as OPCUA
+  [Modbus TCP/RTU] as MODBUS
+  [SiemensS7] as S7
+  [BACnet] as BACNET
+  [MQTT] as MQTT
+  [HTTP Request] as HTTP_DEV
+  [EthernetIP] as ETIP
+  [ADSclient (Beckhoff)] as ADS
+  [MELSEC (Mitsubishi)] as MELSEC
+  [ODBC (DB)] as ODBC_DEV
+  [GPIO (Raspberry Pi)] as GPIO
+  [WebCam] as WEBCAM
+  [Redis] as REDIS_DEV
+  [FUXA Server (Internal)] as FUXASRV
+}
+
+database "데이터 저장소" as DB {
+  [SQLite (Project / Tags)] as SQLITE
+  [SQLite (DAQ History)] as DAQ_SQLITE
+  [InfluxDB] as INFLUX
+  [TDengine] as TDENGINE
+  [QuestDB] as QUESTDB
+}
+
+cloud "외부 서비스" as EXT {
+  [Node-RED] as NODERED
+  [E-Mail (SMTP)] as EMAIL
+  [HTTP Webhook] as WEBHOOK
+}
+
+' 클라이언트 <-> 서버 통신
+CLIENT --> SERVER : HTTPS REST API
+CLIENT <--> SERVER : WebSocket (Socket.IO)\n실시간 태그 값 / 알람
+
+' API <-> Runtime
+API_PKG --> RT : 런타임 참조
+
+' Runtime 내부 관계
+DEVMGR --> PROTOCOLS : 플러그인 로드 및 실행
+PRJMGR --> SQLITE : 프로젝트/뷰/디바이스 저장
+DAQSTG --> DAQ_SQLITE : 기본 저장
+DAQSTG ..> INFLUX : 선택적
+DAQSTG ..> TDENGINE : 선택적
+DAQSTG ..> QUESTDB : 선택적
+ALMMGR --> NOTIF : 알람 발생 시 알림 수행
+NOTIF --> EMAIL : 이메일 전송
+NOTIF --> WEBHOOK : HTTP 알림
+
+' 외부 통합
+SERVER <--> NODERED : REST / WebSocket
+NODERED_UI --> NODERED : 관리(Flow UI)
+
+@enduml

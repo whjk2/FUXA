@@ -1,0 +1,165 @@
+@startuml FUXA Client Component Diagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam componentStyle rectangle
+
+title FUXA - Angular 클라이언트 컴포넌트 다이어그램
+
+skinparam package {
+  BackgroundColor #F3E5F5
+  BorderColor #7B1FA2
+  FontStyle bold
+}
+
+skinparam component {
+  BackgroundColor #EDE7F6
+  BorderColor #512DA8
+}
+
+package "app/ — 루트 모듈" {
+  [AppModule] as APPMOD
+  [AppComponent] as APPCMP
+  [AppRouting] as APPROUT
+  [AuthGuard] as AG
+  [MaterialModule] as MAT
+}
+
+package "페이지 컴포넌트 (Routed Views)" as PAGES {
+  [HomeComponent\n/home, /home/:viewName] as HOME
+  [EditorComponent\n/editor] as EDITOR
+  [DeviceComponent\n/device] as DEVICE
+  [LabComponent\n/lab] as LAB
+  [ViewComponent\n/view] as VIEW
+  [UsersComponent\n/users] as USERS
+  [UsersRolesComponent\n/userRoles] as USERROLES
+  [AlarmViewComponent\n/alarms] as ALARMV
+  [AlarmListComponent\n/messages] as ALARML
+  [NotificationListComponent\n/notifications] as NOTIF
+  [ScriptListComponent\n/scripts] as SCRIPTS
+  [ReportListComponent\n/reports] as REPORTS
+  [LanguageTextListComponent\n/language] as LANG
+  [LogsViewComponent\n/logs, /events] as LOGS
+  [MapsLocationListComponent\n/mapsLocations] as MAPS
+  [NodeRedFlowsComponent\n/flows] as FLOWS
+  [ApiKeysListComponent\n/apikeys] as APIKEYS
+}
+
+package "_services/ — 서비스 레이어" as SERVICES {
+  [HmiService\n(Socket.IO + 태그 변수)] as HMISVC
+  [ProjectService\n(프로젝트 CRUD)] as PRJSVC
+  [AuthService\n(로그인 / JWT)] as AUTHSVC
+  [AppService\n(앱 모드 관리)] as APPSVC
+  [UserService\n(사용자)] as USRSVC
+  [CommandService\n(디바이스 명령)] as CMDSVC
+  [ScriptService\n(스크립트)] as SCRSVC
+  [ResourcesService\n(이미지/파일)] as RESSVC
+  [ReportsService\n(리포트)] as REPSVC
+  [ApiKeysService\n(API 키)] as AKSVC
+  [DiagnoseService\n(진단)] as DIAGSVC
+  [HeartbeatService\n(연결 감지)] as HBSVC
+  [ToastNotifierService] as TOAST
+  [SettingsService] as SETSVC
+  [ThemeService] as THEMSVC
+  [LanguageService] as LNGSVC
+  [MapsLocationsService] as MAPSVC
+  [PluginService] as PLGSVC
+  [DataConverterService] as DATASVC
+  [MyFileService] as FILESVC
+
+  package "rcgi/ — 리소스 게이트웨이" {
+    [ResourceStorageService\n(interface)] as RCGI_IF
+    [ResWebApiService\n(real server)] as RCGI_WEB
+    [ResDemoService\n(demo mode)] as RCGI_DEMO
+    [ResClientService\n(client mode)] as RCGI_CLI
+  }
+}
+
+package "_models/ — 데이터 모델" as MODELS {
+  [hmi.ts\n(Hmi, View, Variable, GaugeSettings)] as M_HMI
+  [device.ts\n(Device, Tag, DeviceType)] as M_DEV
+  [alarm.ts\n(Alarm, AlarmQuery)] as M_ALM
+  [project.ts\n(ProjectData)] as M_PRJ
+  [script.ts] as M_SCR
+  [report.ts] as M_REP
+  [chart.ts] as M_CHT
+  [notification.ts] as M_NOT
+  [maps.ts] as M_MAP
+  [language.ts] as M_LNG
+  [client-access.ts] as M_CA
+}
+
+package "gauges/ — HMI 게이지 위젯" as GAUGES {
+  [GaugesManager] as GMGR
+  [gauge-linear/] as G_LIN
+  [gauge-semi-linear/] as G_SEM
+  [gauge-slider/] as G_SLD
+  [html-input/] as G_INP
+  [html-button/] as G_BTN
+  [html-chart/] as G_CHT
+  [html-image/] as G_IMG
+  [html-table/] as G_TBL
+  [html-iframe/] as G_IFR
+  [html-switch/] as G_SWT
+  [html-select/] as G_SEL
+  [html-bag/] as G_BAG
+  [pipe/] as G_PIPE
+  [process-tomograph/] as G_TOMO
+  [shapes/] as G_SHAPE
+}
+
+package "editor/ — SVG 에디터" as EDITOR_PKG {
+  [EditorComponent] as EDITCMP
+  [ToolbarComponent] as TOOLBAR
+  [PropertyPanelComponent] as PROP
+  [GaugePropertyComponent] as GPROP
+}
+
+package "_helpers/ — 유틸리티" as HELPERS {
+  [EndPointApi] as EP
+  [Utils] as UTILS
+}
+
+' 라우팅
+APPROUT --> PAGES
+AG --> AUTHSVC
+
+' 페이지 -> 서비스
+HOME --> HMISVC
+HOME --> PRJSVC
+EDITOR --> PRJSVC
+EDITOR --> HMISVC
+DEVICE --> PRJSVC
+DEVICE --> CMDSVC
+ALARMV --> HMISVC
+ALARML --> PRJSVC
+SCRIPTS --> SCRSVC
+REPORTS --> REPSVC
+FLOWS --> HMISVC
+
+' 서비스 내부 관계
+PRJSVC --> RCGI_IF
+RCGI_IF <|.. RCGI_WEB
+RCGI_IF <|.. RCGI_DEMO
+RCGI_IF <|.. RCGI_CLI
+HMISVC --> PRJSVC
+HMISVC --> AUTHSVC
+PRJSVC --> APPSVC
+RCGI_WEB --> EP : HTTP 요청 (REST API)
+HMISVC --> EP : Socket.IO 연결
+
+' 서비스 -> 모델
+HMISVC ..> M_HMI
+PRJSVC ..> M_PRJ
+PRJSVC ..> M_DEV
+PRJSVC ..> M_HMI
+
+' 게이지 -> 서비스
+GAUGES --> HMISVC
+GAUGES --> PRJSVC
+GMGR --> GAUGES
+
+' 에디터 -> 게이지
+EDITCMP --> GMGR
+
+@enduml

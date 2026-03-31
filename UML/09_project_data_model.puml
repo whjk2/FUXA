@@ -1,0 +1,187 @@
+@startuml FUXA Project Data Model
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam classBackgroundColor #E3F2FD
+skinparam classBorderColor #1565C0
+skinparam arrowColor #0D47A1
+
+title FUXA - 프로젝트 데이터 모델 (ERD)
+
+class ProjectData {
+  +hmi: HmiData
+  +devices: { [id]: Device }
+  +alarms: Alarm[]
+  +texts: LanguageText[]
+  +server: ServerSettings
+}
+
+class HmiData {
+  +layout: LayoutSettings
+  +views: View[]
+}
+
+class LayoutSettings {
+  +start: string
+  +loginonstart: boolean
+  +navigation: NavigationSettings
+  +header: HeaderSettings
+  +footer: FooterSettings
+  +showFull: boolean
+}
+
+class View {
+  +id: string
+  +name: string
+  +type: ViewType
+  +profile: ViewProfile
+  +items: GaugeSettings[]
+  +svgcontent: string
+  +variables: Variable[]
+}
+
+enum ViewType {
+  cards
+  svg
+  maps
+}
+
+class GaugeSettings {
+  +id: string
+  +name: string
+  +type: string
+  +label: string
+  +property: GaugeProperty
+  +style: GaugeStyle
+  +events: GaugeEvent[]
+  +actions: GaugeEvent[]
+}
+
+class GaugeProperty {
+  +variableId: string
+  +variableValue: any
+  +ranges: GaugeStatus[]
+  +options: any
+  +readonly: boolean
+}
+
+class GaugeEvent {
+  +type: string
+  +actprop: GaugeEventAction
+}
+
+class Device {
+  +id: string
+  +name: string
+  +type: DeviceType
+  +enabled: boolean
+  +polling: number
+  +tags: { [id]: Tag }
+  +property: DeviceNetProperty
+}
+
+class Tag {
+  +id: string
+  +name: string
+  +label: string
+  +type: string
+  +address: string
+  +memaddress: string
+  +divisor: number
+  +offset: number
+  +decimals: number
+  +init: any
+  +format: string
+  +scale: TagScale
+  +dagstore: boolean
+  +dagtype: string
+  +options: any
+}
+
+class DeviceNetProperty {
+  +address: string
+  +port: number
+  +slaveid: number
+  +baudrate: number
+  +stopbits: number
+  +parity: string
+  +rejectUnauthorized: boolean
+  +options: any
+}
+
+class Alarm {
+  +id: string
+  +name: string
+  +type: AlarmBaseType
+  +property: AlarmProperty
+  +actions: AlarmAction[]
+}
+
+class AlarmProperty {
+  +variableId: string
+  +variableValue: any
+  +operator: string
+  +alarmType: string
+  +checkDelay: number
+}
+
+class Script {
+  +id: string
+  +name: string
+  +code: string
+  +scheduling: ScriptScheduling
+  +parameters: ScriptParameter[]
+}
+
+class Scheduler {
+  +id: string
+  +name: string
+  +enabled: boolean
+  +master: SchedulerMaster
+  +events: SchedulerEvent[]
+  +deviceActions: DeviceAction[]
+}
+
+class Report {
+  +id: string
+  +name: string
+  +type: string
+  +scheduler: string
+  +content: ReportContent
+}
+
+class Variable {
+  +id: string
+  +name: string
+  +tagId: string
+  +value: any
+}
+
+' 관계
+ProjectData "1" *-- "1" HmiData
+ProjectData "1" *-- "0..*" Device : devices
+ProjectData "1" *-- "0..*" Alarm : alarms
+
+HmiData "1" *-- "1" LayoutSettings
+HmiData "1" *-- "0..*" View
+
+View "1" *-- "0..*" GaugeSettings : items
+View "1" *-- "0..*" Variable
+View --> ViewType
+
+GaugeSettings "1" *-- "1" GaugeProperty
+GaugeSettings "1" *-- "0..*" GaugeEvent
+
+GaugeProperty ..> Tag : variableId 참조
+
+Device "1" *-- "0..*" Tag : tags
+Device "1" *-- "1" DeviceNetProperty
+
+Alarm "1" *-- "1" AlarmProperty
+AlarmProperty ..> Tag : variableId 참조
+
+Script "1" --* ProjectData : (scripts in DB)
+Scheduler "1" --* ProjectData : (scheduler in DB)
+Report "1" --* ProjectData : (reports in DB)
+
+@enduml

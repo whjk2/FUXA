@@ -1,0 +1,169 @@
+@startuml FUXA Server Component Diagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam componentStyle rectangle
+
+title FUXA - 서버 컴포넌트 상세 다이어그램
+
+skinparam package {
+  BackgroundColor #FFF9E6
+  BorderColor #FFC107
+  FontStyle bold
+}
+
+skinparam component {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+}
+
+package "main.js — 진입점" as ENTRY {
+  [HTTP/HTTPS Server\n(Express + Socket.IO)] as HTTPSVR
+  [JWT 인증 미들웨어\n(jwt-helper.js)] as JWTMW
+  [환경 파라미터\n(envParams.js)] as ENVP
+  [경로 설정\n(paths.js)] as PATHS
+  [설정 파일\n(settings.default.js)] as SETTINGS
+}
+
+package "api/ — REST API 레이어" as API {
+  [projects API] as A_PRJ
+  [auth API] as A_AUTH
+  [users API] as A_USR
+  [alarms API] as A_ALM
+  [daq API] as A_DAQ
+  [scheduler API] as A_SCHED
+  [scripts API] as A_SCR
+  [reports API] as A_REP
+  [plugins API] as A_PLG
+  [command API] as A_CMD
+  [resources API] as A_RES
+  [apikeys API] as A_KEY
+  [diagnose API] as A_DIAG
+  [verifyApiOrToken()] as A_VERIFY
+}
+
+package "runtime/ — 런타임 엔진" as RT {
+
+  package "project/ — 프로젝트 관리" {
+    [ProjectManager\n(index.js)] as PM
+    [PrjStorage\n(prjstorage.js)] as PS
+  }
+
+  package "devices/ — 디바이스 관리" {
+    [DevicesManager\n(index.js)] as DM
+    [Device\n(device.js)] as DEV
+    [device-utils.js] as DU
+  }
+
+  package "alarms/ — 알람 관리" {
+    [AlarmsManager\n(index.js)] as AM
+    [AlarmStorage\n(alarmstorage.js)] as AS
+  }
+
+  package "notificator/ — 알림 관리" {
+    [NotificatorManager\n(index.js)] as NM
+  }
+
+  package "scripts/ — 스크립트 엔진" {
+    [ScriptsManager\n(index.js)] as SM
+    [MyScriptModule\n(msm.js)] as MSM
+  }
+
+  package "scheduler/ — 스케줄러" {
+    [SchedulerService\n(scheduler-service.js)] as SS
+    [SchedulerStorage\n(scheduler-storage.js)] as SST
+  }
+
+  package "jobs/ — 배치 작업" {
+    [JobsManager\n(index.js)] as JM
+    [Report Job] as RJ
+    [Cleaner Job] as CJ
+  }
+
+  package "storage/ — DAQ 저장" {
+    [DAQStorage\n(daqstorage.js)] as DS
+    [SQLite\n(sqlite/)] as SQLI
+    [InfluxDB\n(influxdb/)] as INF
+    [TDengine\n(tdengine/)] as TDE
+    [QuestDB\n(questdb/)] as QDB
+    [CurrentStorage] as CS
+    [Calculator\n(calculator.js)] as CALC
+  }
+
+  package "plugins/ — 플러그인 관리" {
+    [PluginsManager\n(index.js)] as PLG
+  }
+
+  package "users/ — 사용자 관리" {
+    [UsersManager] as UM
+  }
+
+  package "apikeys/ — API 키 관리" {
+    [ApiKeysManager] as AKM
+  }
+
+  [events.js\n(런타임 이벤트 버스)] as EV
+  [logger.js\n(Winston 로거)] as LOG
+  [utils.js] as UTIL
+}
+
+package "runtime/devices/ — 프로토콜 드라이버" as DRIVERS {
+  [opcua/] as D_OPCUA
+  [modbus/] as D_MOD
+  [s7/] as D_S7
+  [bacnet/] as D_BAC
+  [mqtt/] as D_MQTT
+  [httprequest/] as D_HTTP
+  [ethernetip/] as D_EIP
+  [adsclient/] as D_ADS
+  [melsec/] as D_MEL
+  [odbc/] as D_ODBC
+  [gpio/] as D_GPIO
+  [webcam/] as D_CAM
+  [redis/] as D_REDIS
+  [fuxaserver/] as D_FUXA
+  [template/] as D_TPL
+}
+
+' 진입점 흐름
+HTTPSVR --> API : 라우팅
+HTTPSVR --> RT : Socket.IO 이벤트
+JWTMW --> API
+ENVP --> SETTINGS
+SETTINGS --> HTTPSVR
+
+' API <-> Runtime
+A_PRJ --> PM
+A_AUTH --> UM
+A_USR --> UM
+A_ALM --> AM
+A_DAQ --> DS
+A_SCHED --> SS
+A_SCR --> SM
+A_REP --> JM
+A_PLG --> PLG
+A_CMD --> DM
+A_KEY --> AKM
+A_VERIFY --> AKM
+
+' Runtime 내부
+PM --> PS
+DM --> DEV
+DEV --> DRIVERS : 플러그인 인스턴스 생성
+AM --> AS
+AM --> EV : 알람 이벤트 발행
+NM --> AM
+SM --> MSM
+SS --> SST
+JM --> RJ
+JM --> CJ
+DS --> SQLI
+DS ..> INF
+DS ..> TDE
+DS ..> QDB
+DS --> CS
+DS --> CALC
+PLG --> DRIVERS : npm 패키지 로드
+EV --> RT : 이벤트 버스
+
+@enduml

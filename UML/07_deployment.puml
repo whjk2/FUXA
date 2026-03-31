@@ -1,0 +1,106 @@
+@startuml FUXA Deployment Diagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+
+title FUXA - 배포 구성 다이어그램
+
+skinparam node {
+  BackgroundColor #E8F4FD
+  BorderColor #1565C0
+}
+
+skinparam database {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+}
+
+skinparam artifact {
+  BackgroundColor #FFF9E6
+  BorderColor #F57F17
+}
+
+node "클라이언트 머신" as CLIENT_NODE {
+  node "웹 브라우저\n(Chrome, Firefox, Edge)" as BROWSER {
+    artifact "Angular SPA\n(빌드 결과물: dist/)" as SPA
+  }
+}
+
+node "Electron 데스크탑 앱\n(선택적)" as ELECTRON_NODE {
+  artifact "main.js\n(Electron 엔트릭포인트)" as ELECTRON_MAIN
+  artifact "Angular SPA (내장)" as ELECTRON_SPA
+  note right: app/electron/ 폴더\n로컬 실행 지원
+}
+
+node "FUXA 서버 (Linux / Windows / macOS)" as SERVER_NODE {
+  node "Node.js Runtime\n(v16+)" as NODEJS {
+    artifact "main.js\n(HTTP/HTTPS Server)" as MAIN
+    artifact "runtime/\n(DevicesManager, AlarmsMgr, ...)" as RT_ART
+    artifact "api/\n(Express REST + Socket.IO)" as API_ART
+    artifact "dist/\n(TypeScript 컴파일 출력)" as DIST_ART
+  }
+
+  database "SQLite DB\n(_appdata/)" as SQLITE_DB {
+    artifact "project.db\n(프로젝트/뷰/디바이스)" as PRJ_DB
+    artifact "daq_*.db\n(태그 이력)" as DAQ_DB
+    artifact "alarms.db\n(알람 이력)" as ALM_DB
+    artifact "scheduler.db\n(스케줄)" as SCH_DB
+  }
+}
+
+node "선택적 외부 DB 서버" as EXT_DB_NODE {
+  database "InfluxDB\n(시계열 DB)" as INFLUX_DB
+  database "TDengine\n(시계열 DB)" as TDE_DB
+  database "QuestDB\n(시계열 DB)" as QDB_DB
+}
+
+node "Node-RED 서버\n(선택적)" as NR_NODE {
+  artifact "node-red-contrib-fuxa\n(FUXA 노드 플러그인)" as NR_PLUGIN
+}
+
+node "산업 기기 / PLC / 센서" as DEVICES_NODE {
+  artifact "OPC-UA Server" as OPC
+  artifact "Modbus 기기" as MOD
+  artifact "Siemens S7 PLC" as S7
+  artifact "MQTT Broker" as MQTTB
+  artifact "BACnet 기기" as BAC
+  artifact "기타 HTTP/ODBC/Redis 등" as ETC_DEV
+}
+
+' 클라이언트 <-> 서버
+BROWSER --> SERVER_NODE : HTTPS (443) / HTTP (1881)\nREST API + Socket.IO
+ELECTRON_NODE --> SERVER_NODE : HTTP (1881)\n내장 서버 또는 원격
+
+' 서버 내부
+MAIN --> RT_ART
+MAIN --> API_ART
+MAIN --> DIST_ART
+
+' 서버 <-> SQLite
+RT_ART --> SQLITE_DB
+
+' 서버 <-> 외부 DB
+RT_ART ..> EXT_DB_NODE : 설정 시 연결됨
+
+' 서버 <-> Node-RED
+SERVER_NODE <--> NR_NODE : HTTP REST\n(FUXA API 호출)
+
+' 서버 <-> 디바이스
+RT_ART --> DEVICES_NODE : 프로토콜 드라이버\n(OPC-UA, Modbus, S7,\nMQTT, BACnet, HTTP, ...)
+
+note bottom of SERVER_NODE
+  기본 포트: 1881 (HTTP)
+  Docker: compose.yml 참조
+  데이터 경로: _appdata/
+end note
+
+note bottom of DEVICES_NODE
+  지원 프로토콜:
+  OPC-UA, Modbus RTU/TCP,
+  Siemens S7, BACnet, MQTT,
+  HTTP Request, EthernetIP,
+  ADS (Beckhoff), MELSEC,
+  ODBC, GPIO, WebCam, Redis
+end note
+
+@enduml

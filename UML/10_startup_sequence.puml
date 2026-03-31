@@ -1,0 +1,74 @@
+@startuml FUXA Startup Sequence
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam sequenceMessageAlign center
+
+title FUXA - 서버 시작 순서 (Startup Sequence)
+
+participant "main.js" as MAIN
+participant "settings\n(settings.default.js)" as SETT
+participant "logger\n(runtime/logger.js)" as LOG
+participant "Express\nHTTP Server" as HTTP
+participant "API Layer\n(api/index.js)" as API
+participant "Runtime Engine\n(runtime/index.js)" as RT
+participant "ProjectManager" as PM
+participant "PluginsManager" as PLG
+participant "UsersManager" as UM
+participant "DAQStorage" as DAQ
+participant "SchedulerService" as SS
+participant "DevicesManager" as DM
+participant "AlarmsManager" as AM
+participant "ScriptsManager" as SM
+participant "NotificatorManager" as NM
+participant "JobsManager" as JM
+
+MAIN -> SETT : 설정 파일 로드\n(settings.default.js + 사용자 설정)
+MAIN -> LOG : logger 초기화
+MAIN -> HTTP : Express + Socket.IO 서버 생성
+
+MAIN -> API : api.init(server, runtime)
+API -> HTTP : Express 미들웨어 등록\n(bodyParser, morgan, rateLimit)
+API -> HTTP : REST 라우트 등록\n(/api/project, /api/auth, ...)
+
+MAIN -> RT : runtime.init(io, api, settings, logger)
+
+RT -> DAQ : daqstorage.init()
+RT -> SS : schedulerStorage.init() → schedulerService.init()
+
+RT -> PLG : plugins.init()
+PLG --> RT : 'init-plugins-ok' 이벤트
+
+RT -> UM : users.init()
+UM --> RT : 'init-users-ok' 이벤트
+
+RT -> PM : project.init()
+PM --> RT : 'init-project-ok' 이벤트
+
+RT -> MAIN : 'init-runtime-ok' 이벤트\n(3개 이벤트 모두 수신 후)
+
+MAIN -> RT : runtime.start()
+
+RT -> PM : project.load()\n(DB에서 뷰/디바이스/알람 읽기)
+
+RT -> DM : devices.init(runtime)
+RT -> DM : devices.start()\n(활성 디바이스 순회 → device.start())
+DM -> DM : 각 디바이스 드라이버 connect()
+
+RT -> AM : new AlarmsManager(runtime)\nalarmsMgr.load() → start()
+
+RT -> SM : new ScriptsManager(runtime)\nscriptsMgr.start()
+
+RT -> NM : new NotificatorManager(runtime)\nnotificatorMgr.start()
+
+RT -> JM : new JobsManager(runtime)\njobsMgr.start()
+
+MAIN -> HTTP : server.listen(PORT)
+MAIN -> LOG : "FUXA v{version} started on port {PORT}"
+
+note over DM, AM
+  디바이스 폴링과 알람 체크는
+  각각 독립적인 setInterval()로 실행됩니다.
+end note
+
+@enduml

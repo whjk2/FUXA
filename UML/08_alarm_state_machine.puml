@@ -1,0 +1,71 @@
+@startuml FUXA Alarm State Machine
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam state {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  ArrowColor #BF360C
+}
+
+title FUXA - 알람 관리자 상태 머신 (AlarmsManager)
+
+[*] --> INIT : 시작
+
+INIT --> LOAD : start() 호출
+
+state LOAD {
+  [*] --> LoadingAlarms
+  LoadingAlarms --> LoadingAlarms : DB에서 알람 설정 읽기
+  LoadingAlarms --> [*] : 로딩 완료
+}
+
+LOAD --> IDLE : 알람 설정 로드 완료
+
+state IDLE {
+  [*] --> Waiting
+  Waiting --> CheckTriggered : 1초 타이머 만료
+  CheckTriggered --> Waiting : 조건 없음
+  CheckTriggered --> ProcessAlarm : 임계값 초과 감지
+}
+
+IDLE --> LOAD : reset() / updateAlarms() 호출
+
+state ProcessAlarm {
+  [*] --> CheckThreshold
+  CheckThreshold --> SetActive : 조건 충족 (HH, H, L, LL)
+  CheckThreshold --> SetInactive : 조건 해소
+  SetActive --> SaveToDB : 신규 알람 활성화
+  SetInactive --> SaveToDB : 알람 비활성화
+  SaveToDB --> EmitEvent : alarmstorage.addAlarm()
+  EmitEvent --> [*] : 'alarms-status' 이벤트 emit
+}
+
+ProcessAlarm --> IDLE : 처리 완료
+
+IDLE --> STOP : stop() 호출
+
+state STOP {
+  [*] --> ClearInterval
+  ClearInterval --> [*] : clearInterval(timer)
+}
+
+STOP --> INIT : 정지 완료
+
+note right of IDLE
+  폴링 주기: 1000ms
+  조건 유형:
+  - HH (HighHigh)
+  - High
+  - Low
+  - LL (LowLow)
+  - 비교 연산자 지원
+end note
+
+note right of ProcessAlarm
+  NotificatorManager에
+  알람 이벤트 전달 →
+  Email / Webhook 발송
+end note
+
+@enduml

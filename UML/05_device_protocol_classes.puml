@@ -1,0 +1,207 @@
+@startuml FUXA Device Protocol Class Diagram
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName "Noto Sans"
+skinparam classBackgroundColor #E8F5E9
+skinparam classBorderColor #2E7D32
+skinparam arrowColor #1B5E20
+
+title FUXA - 디바이스 프로토콜 클래스 다이어그램
+
+enum DeviceType {
+  ModbusRTU
+  ModbusTCP
+  SiemensS7
+  OPCUA
+  BACnet
+  MQTT
+  HTTPRequest
+  EthernetIP
+  ADSclient
+  MELSEC
+  ODBC
+  GPIO
+  WebCam
+  Redis
+  MQTTbroker
+  FuxaServer
+}
+
+abstract class DeviceBase {
+  +id: string
+  +name: string
+  +type: DeviceType
+  +enabled: boolean
+  +polling: number
+  +tags: Tag[]
+  --
+  +init(settings, logger, data) Promise
+  +connect() Promise
+  +disconnect() Promise
+  +start() Promise
+  +stop() Promise
+  +load(data)
+  +save() Tag[]
+  +getValues() {id, value, ts}
+  +getValue(tagId) any
+  +setValue(tagId, value) Promise
+  +bindAddNodes(fnc)
+  +bindGetProperty(fnc)
+  +getProperty() any
+  +getTagsValue() any[]
+  +isConnected() boolean
+}
+
+class Tag {
+  +id: string
+  +name: string
+  +type: string
+  +address: string
+  +memaddress: string
+  +divisor: number
+  +offset: number
+  +decimals: number
+  +value: any
+  +timestamp: number
+  +error: string
+}
+
+class ModbusDevice {
+  -client: ModbusSerialClient
+  -polling: NodeJS.Timer
+  +coilsStart: number
+  +holdingStart: number
+  --
+  +connect()
+  +readCoils(start, count)
+  +readHoldingRegisters(start, count)
+  +writeCoil(address, value)
+  +writeRegister(address, value)
+}
+
+class OpcUaDevice {
+  -client: OPCUAClient
+  -session: ClientSession
+  +securityMode: string
+  +securityPolicy: string
+  --
+  +connect()
+  +browse(nodeId)
+  +read(nodesToRead[])
+  +write(nodesToWrite[])
+  +subscribe(nodeIds[])
+}
+
+class S7Device {
+  -client: NodeS7
+  +rack: number
+  +slot: number
+  --
+  +connect()
+  +read(items[])
+  +write(item, value)
+}
+
+class MqttDevice {
+  -client: MQTTClient
+  +brokerAddress: string
+  +clientId: string
+  --
+  +connect()
+  +subscribe(topics[])
+  +publish(topic, payload)
+  +onMessage(topic, message)
+}
+
+class BacnetDevice {
+  -client: BACnetClient
+  +deviceId: number
+  +interface: string
+  --
+  +connect()
+  +readProperty(deviceId, objectId, propertyId)
+  +writeProperty(deviceId, objectId, propertyId, value)
+}
+
+class HttpRequestDevice {
+  -polling: NodeJS.Timer
+  +address: string
+  +method: string
+  +headers: object
+  --
+  +request(options)
+  +parseResponse(response)
+}
+
+class FuxaServerDevice {
+  -polling: NodeJS.Timer
+  +address: string
+  --
+  +getSystemTags()
+  +getCpuUsage()
+  +getMemoryUsage()
+  +getDiskUsage()
+}
+
+class EthernetIPDevice {
+  -controller: Controller
+  +address: string
+  --
+  +connect()
+  +read(tag)
+  +write(tag, value)
+}
+
+class S7AdsclientDevice {
+  -client: AdsClient
+  +netId: string
+  +port: number
+  --
+  +connect()
+  +readValue(handle)
+  +writeValue(handle, value)
+}
+
+class OdbcDevice {
+  -connection: ODBCConnection
+  +dsn: string
+  --
+  +connect()
+  +executeQuery(sql)
+  +parseResult(result)
+}
+
+class RedisDevice {
+  -client: RedisClient
+  +address: string
+  +port: number
+  --
+  +connect()
+  +get(key)
+  +set(key, value)
+  +hget(hash, field)
+}
+
+' 상속 관계
+DeviceBase <|-- ModbusDevice
+DeviceBase <|-- OpcUaDevice
+DeviceBase <|-- S7Device
+DeviceBase <|-- MqttDevice
+DeviceBase <|-- BacnetDevice
+DeviceBase <|-- HttpRequestDevice
+DeviceBase <|-- FuxaServerDevice
+DeviceBase <|-- EthernetIPDevice
+DeviceBase <|-- S7AdsclientDevice
+DeviceBase <|-- OdbcDevice
+DeviceBase <|-- RedisDevice
+
+DeviceBase "1" *-- "0..*" Tag : contains
+
+note right of DeviceBase
+  모든 디바이스 드라이버는
+  공통 인터페이스를 구현합니다.
+  DevicesManager가 init/start/stop
+  라이프사이클을 관리합니다.
+end note
+
+@enduml
